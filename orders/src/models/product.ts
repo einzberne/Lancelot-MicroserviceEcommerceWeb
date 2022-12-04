@@ -1,7 +1,9 @@
-import mongoose from "mongoose";
-import { Order, OrderStatus } from "./order";
+import mongoose from 'mongoose';
+import { updateIfCurrentPlugin } from 'mongoose-update-if-current';
+import { Order, OrderStatus } from './order';
 
 interface ProductAttrs {
+  id: string;
   title: string;
   price: number;
 }
@@ -9,11 +11,16 @@ interface ProductAttrs {
 export interface ProductDoc extends mongoose.Document {
   title: string;
   price: number;
+  version: number;
   isReserved(): Promise<boolean>;
 }
 
 interface ProductModel extends mongoose.Model<ProductDoc> {
   build(attrs: ProductAttrs): ProductDoc;
+  findByEvent(event: {
+    id: string;
+    version: number;
+  }): Promise<ProductDoc | null>;
 }
 
 const productSchema = new mongoose.Schema(
@@ -38,13 +45,26 @@ const productSchema = new mongoose.Schema(
   }
 );
 
+productSchema.set('versionKey', 'version');
+productSchema.plugin(updateIfCurrentPlugin);
+
+productSchema.statics.findByEvent = (event: { id: string; version: number }) => {
+  return Product.findOne({
+    _id: event.id,
+    version: event.version - 1,
+  });
+};
 productSchema.statics.build = (attrs: ProductAttrs) => {
-  return new Product(attrs);
+  return new Product({
+    _id: attrs.id,
+    title: attrs.title,
+    price: attrs.price,
+  });
 };
 productSchema.methods.isReserved = async function () {
   // this === the product document that we just called 'isReserved' on
   const existingOrder = await Order.findOne({
-    product: this,
+    product: this as any,
     status: {
       $in: [
         OrderStatus.Created,
@@ -57,6 +77,6 @@ productSchema.methods.isReserved = async function () {
   return !!existingOrder;
 };
 
-const Product = mongoose.model<ProductDoc, ProductModel>("Product", productSchema);
+const Product = mongoose.model<ProductDoc, ProductModel>('Product', productSchema);
 
 export { Product };

@@ -1,11 +1,13 @@
-import request from 'supertest';
-import { app } from '../../app';
-import { Order } from '../../models/order';
-import { Product } from '../../models/product';
+import mongoose from "mongoose";
+import request from "supertest";
+import { app } from "../../app";
+import { Order } from "../../models/order";
+import { Product } from "../../models/product";
 
 const buildProduct = async () => {
   const product = Product.build({
-    title: 'concert',
+    id: new mongoose.Types.ObjectId().toHexString(),
+    title: "concert",
     price: 20,
   });
   await product.save();
@@ -13,7 +15,7 @@ const buildProduct = async () => {
   return product;
 };
 
-it('fetches orders for an particular user', async () => {
+it("fetches orders for an particular user", async () => {
   // Create three products
   const productOne = await buildProduct();
   const productTwo = await buildProduct();
@@ -23,27 +25,27 @@ it('fetches orders for an particular user', async () => {
   const userTwo = global.signin();
   // Create one order as User #1
   await request(app)
-    .post('/api/orders')
-    .set('Cookie', userOne)
+    .post("/api/orders")
+    .set("Cookie", userOne)
     .send({ productId: productOne.id })
     .expect(201);
 
   // Create two orders as User #2
   const { body: orderOne } = await request(app)
-    .post('/api/orders')
-    .set('Cookie', userTwo)
+    .post("/api/orders")
+    .set("Cookie", userTwo)
     .send({ productId: productTwo.id })
     .expect(201);
   const { body: orderTwo } = await request(app)
-    .post('/api/orders')
-    .set('Cookie', userTwo)
+    .post("/api/orders")
+    .set("Cookie", userTwo)
     .send({ productId: productThree.id })
     .expect(201);
 
   // Make request to get orders for User #2
   const response = await request(app)
-    .get('/api/orders')
-    .set('Cookie', userTwo)
+    .get("/api/orders")
+    .set("Cookie", userTwo)
     .expect(200);
 
   // Make sure we only got the orders for User #2
